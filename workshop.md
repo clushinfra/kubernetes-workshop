@@ -342,32 +342,32 @@ alias k
 vi deployment-2048.yaml
 ```
 - 파일 내용 기입
-    - 🔽 deployment-2048.yaml 파일
-    ```yaml
-    apiVersion: apps/v1
-    kind: Deployment
+- 🔽 deployment-2048.yaml 파일
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-2048
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: app-2048
+  template:
     metadata:
-    name: deployment-2048
-    spec:
-    replicas: 2   # pod 2개 배포
-    selector:
-        matchLabels:
+      labels:
         app.kubernetes.io/name: app-2048
-    template:
-        metadata:
-        labels:
-            app.kubernetes.io/name: app-2048
-        spec:
-        containers:
-            - name: app-2048
-            image: alexwhen/docker-2048
-            ports:
-                - containerPort: 80
-    ```
-    ```bash
-    > i 입력하여 파일내용 기입
-    > :wq 입력하여 저장 후 종료
-    ```
+    spec:
+      containers:
+        - name: app-2048
+          image: alexwhen/docker-2048
+          ports:
+            - containerPort: 80
+```
+```bash
+> i 입력하여 파일내용 기입
+> :wq 입력하여 저장 후 종료
+```
 - Deployment 배포
 ```bash
 kubectl apply -f deployment-2048.yaml
@@ -398,25 +398,18 @@ vi service-2048.yaml
 - 파일 내용 기입
 - 🔽 service-2048.yaml 파일
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: Service
 metadata:
   name: deployment-2048
 spec:
-  replicas: 2
   selector:
-    matchLabels:
-      app.kubernetes.io/name: app-2048
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: app-2048
-    spec:
-      containers:
-        - name: app-2048
-          image: alexwhen/docker-2048
-          ports:
-            - containerPort: 80
+    app.kubernetes.io/name: app-2048
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
 ```
 ```bash
 > i 입력하여 파일내용 기입
