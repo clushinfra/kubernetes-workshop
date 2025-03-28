@@ -1,6 +1,3 @@
-# kubernetes-workshop
-Clush Kubernetes Workshop
-
 # [실습1] **쿠버네티스 클러스터 구축 실습**
 
 ## 1. 공통 진행(master, work1, work2)
@@ -478,105 +475,9 @@ kubectl describe pod [pod명]
 ```bash
 kubectl logs [pod명]
 ```
----
-## 2.  쿠버네티스 대시보드 배포
 
-### 1) 서비스 설치
-- 서비스 설치
-```bash
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
-```
-- 정상적으로 서비스가 만들어졌는지 확인
-```bash
-kubectl get svc -n kubernetes-dashboard
-```
 ---
-### 2) NodePort 설정
-- 외부 접속을 위해 NodePort 설정
-```bash
-kubectl edit svc kubernetes-dashboard -n kubernetes-dashboard
-```
-- 파일 수정
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  annotations:
-    kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"labels":{"k8s-app":"kubernetes-dashboard"},"name":"kubernetes-dashboard","namespace":"kubernetes-dashboard"},"spec":{"ports":[{"port":443,"targetPort":8443}],"selector":{"k8s-app":"kubernetes-dashboard"}}}
-  creationTimestamp: "2023-12-26T07:55:00Z"
-  labels:
-    k8s-app: kubernetes-dashboard
-  name: kubernetes-dashboard
-  namespace: kubernetes-dashboard
-  resourceVersion: "496361"
-  uid: 227af817-5a33-4ce8-a3dd-adb43030d376
-spec:
-  clusterIP: 10.97.19.146
-  clusterIPs:
-  - 10.97.19.146
-  internalTrafficPolicy: Cluster
-  ipFamilies:
-  - IPv4
-  ipFamilyPolicy: SingleStack
-  ports:
-  - nodePort: 31000 # <<<<<<<<<<<< 수정
-    port: 443
-    protocol: TCP
-    targetPort: 8443
-  selector:
-    k8s-app: kubernetes-dashboard
-  sessionAffinity: None
-  type: NodePort # <<<<<<<<<<<< 수정
-status:
-  loadBalancer: {}
-```
-- 변경사항 확인
-```bash
-kubectl get svc -n kubernetes-dashboard
-```
-- 예시 링크
-```
-https://192.168.0.11:31000/#login
-```
----
-### 3) 관리자 계정 생성
-- 설치 파일 생성
-```bash
-vi dashboard-admin.yaml
-```
-- dashboard-admin.yaml 입력
-- 🔽 dashboard-admin.yaml 파일
-```yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: admin-user
-  namespace: kubernetes-dashboard
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: admin-user
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-- kind: ServiceAccount
-  name: admin-user
-  namespace: kubernetes-dashboard
-```
-- 설치
-```bash
-kubectl apply -f dashboard-admin.yaml
-```
-- 만들어진 대시보드 토큰 값 생성
-```bash
-kubectl -n kubernetes-dashboard create token admin-user
-```
----
-## 3.  나만의 블로그 만들기
+## 2.  나만의 블로그 만들기
 
 ### 0) Namespace 생성
 - Namespace 조회
@@ -778,10 +679,15 @@ spec:
       targetPort: 80
       nodePort: 30080  # 외부에서 접근할 수 있도록 NodePort 설정
 ```
-- 설치
+- 설치 진행 (오류 발생 일어날 예정)
 ```bash
 kubectl apply -f wordpress-deploy.yaml -n mysql
 ```
+```bash
+# 
+error: error parsing wordpress-deploy.yaml: error converting YAML to JSON: yaml: line 19: did not find expected key
+```
+- MySQL ClusterIP 수정
 ---
 ### 4) MySQL ClusterIP 수정
 - mysql Namespace의 전체 리소스 확인
@@ -791,7 +697,7 @@ kubectl get all -n mysql -o wide
 ```
 - Deployment 수정
 ```bash
-kubectl edit deployment.apps/wordpress -n mysql
+vi wordpress-deploy.yaml
 ```
 - [MySQL ClusterIP] 부분을 자신의 ClusterIP로 수정하기
 ```yaml
@@ -805,7 +711,108 @@ spec:
               value: [MySQL ClusterIP]:3306  # 확인 후 수정 필요
 ...
 ```
+- 설치 진행 (오류 발생 일어날 예정)
+```bash
+kubectl apply -f wordpress-deploy.yaml -n mysql
+```
 - 상태 확인
 ```bash
 kubectl get all -n mysql -o wide
+```
+---
+## 3.  쿠버네티스 대시보드 배포
+
+### 1) 서비스 설치
+- 서비스 설치
+```bash
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
+```
+- 정상적으로 서비스가 만들어졌는지 확인
+```bash
+kubectl get svc -n kubernetes-dashboard
+```
+---
+### 2) NodePort 설정
+- 외부 접속을 위해 NodePort 설정
+```bash
+kubectl edit svc kubernetes-dashboard -n kubernetes-dashboard
+```
+- 파일 수정
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"labels":{"k8s-app":"kubernetes-dashboard"},"name":"kubernetes-dashboard","namespace":"kubernetes-dashboard"},"spec":{"ports":[{"port":443,"targetPort":8443}],"selector":{"k8s-app":"kubernetes-dashboard"}}}
+  creationTimestamp: "2023-12-26T07:55:00Z"
+  labels:
+    k8s-app: kubernetes-dashboard
+  name: kubernetes-dashboard
+  namespace: kubernetes-dashboard
+  resourceVersion: "496361"
+  uid: 227af817-5a33-4ce8-a3dd-adb43030d376
+spec:
+  clusterIP: 10.97.19.146
+  clusterIPs:
+  - 10.97.19.146
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - nodePort: 31000 # <<<<<<<<<<<< 수정
+    port: 443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    k8s-app: kubernetes-dashboard
+  sessionAffinity: None
+  type: NodePort # <<<<<<<<<<<< 수정
+status:
+  loadBalancer: {}
+```
+- 변경사항 확인
+```bash
+kubectl get svc -n kubernetes-dashboard
+```
+- 예시 링크
+```
+https://192.168.0.11:31000/#login
+```
+---
+### 3) 관리자 계정 생성
+- 설치 파일 생성
+```bash
+vi dashboard-admin.yaml
+```
+- dashboard-admin.yaml 입력
+- 🔽 dashboard-admin.yaml 파일
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin-user
+  namespace: kubernetes-dashboard
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-user
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: admin-user
+  namespace: kubernetes-dashboard
+```
+- 설치
+```bash
+kubectl apply -f dashboard-admin.yaml
+```
+- 만들어진 대시보드 토큰 값 생성
+```bash
+kubectl -n kubernetes-dashboard create token admin-user
 ```
