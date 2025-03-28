@@ -396,32 +396,32 @@ deployment-2048-7ttttx   1/1     Running   0          1m
 vi service-2048.yaml
 ```
 - 파일 내용 기입
-    - 🔽 service-2048.yaml 파일
-    ```yaml
-    apiVersion: apps/v1
-    kind: Deployment
+- 🔽 service-2048.yaml 파일
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-2048
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: app-2048
+  template:
     metadata:
-    name: deployment-2048
-    spec:
-    replicas: 2
-    selector:
-        matchLabels:
+      labels:
         app.kubernetes.io/name: app-2048
-    template:
-        metadata:
-        labels:
-            app.kubernetes.io/name: app-2048
-        spec:
-        containers:
-            - name: app-2048
-            image: alexwhen/docker-2048
-            ports:
-                - containerPort: 80
-    ```
-    ```bash
-    > i 입력하여 파일내용 기입
-    > :wq 입력하여 저장 후 종료
-    ```
+    spec:
+      containers:
+        - name: app-2048
+          image: alexwhen/docker-2048
+          ports:
+            - containerPort: 80
+```
+```bash
+> i 입력하여 파일내용 기입
+> :wq 입력하여 저장 후 종료
+```
 - Service 배포
 ```bash
 kubectl apply -f service-2048.yaml
