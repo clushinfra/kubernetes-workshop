@@ -684,10 +684,10 @@ spec:
 kubectl apply -f wordpress-deploy.yaml -n mysql
 ```
 ```bash
-# 출력 결과
+# 
 error: error parsing wordpress-deploy.yaml: error converting YAML to JSON: yaml: line 19: did not find expected key
 ```
-- MySQL ClusterIP 수정 필요
+- MySQL ClusterIP 수정
 ---
 ### 4) MySQL ClusterIP 수정
 - mysql Namespace의 전체 리소스 확인
@@ -723,7 +723,7 @@ kubectl get all -n mysql -o wide
 ## 3.  쿠버네티스 대시보드 배포
 
 ### 1) 서비스 설치
-- 서비스 설치
+- 앱 배포
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
 ```
