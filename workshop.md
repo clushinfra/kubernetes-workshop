@@ -478,140 +478,234 @@ kubectl logs [pod명]
 ---
 ## 2.  쿠버네티스 대시보드 배포
 
-### 1) 서비스 설치
-- 서비스 설치
+### 0) Namespace 생성
+- Namespace 조회
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
+kubectl get namespaces
 ```
-- 정상적으로 서비스가 만들어졌는지 확인
+- Namespace 생성
 ```bash
-kubectl get svc -n kubernetes-dashboard
+kubectl create namespace mysql
 ```
 ---
-### 2) NodePort 설정
-- 외부 접속을 위해 NodePort 설정
+### 1) PV 와 PVC 생성
+- mysql-pv-pvc.yaml 파일 생성
 ```bash
-kubectl edit svc kubernetes-dashboard -n kubernetes-dashboard
+vi mysql-pv-pvc.yaml
 ```
-- 파일 수정
+- mysql-pv-pvc.yaml 파일 내용 입력
 ```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /mnt/data/mysql
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+```
+```bash
+> i 입력하고 복사한 내용 붙여넣기
+> esc 누른 후, :wp 입력하여 저장 후 종료
+```
+- wordpress-pv-pvc.yaml  파일 생성
+```bash
+vi wordpress-pv-pvc.yaml 
+```
+- wordpress-pv-pvc.yaml 파일 내용 입력
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: wordpress-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /mnt/data/wordpress
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wordpress-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+```
+```bash
+> i 입력하고 복사한 내용 붙여넣기
+> esc 누른 후, :wp 입력하여 저장 후 종료
+```
+- pv, pvc 생성
+```bash
+kubectl apply -f mysql-pv-pvc.yaml -n mysql
+```
+```bash
+kubectl apply -f wordpress-pv-pvc.yaml -n mysql
+```
+---
+### 2) MySQL Pod 및 Service 배포
+- 파일 생성
+```bash
+vi mysql-deploy.yaml
+```
+- mysql-deploy.yaml 파일 내용 입력
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+spec:
+  selector:
+    matchLabels:
+      app: mysql
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:5.7
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: wordpress123
+            - name: MYSQL_DATABASE
+              value: wordpress
+            - name: MYSQL_USER
+              value: wpuser
+            - name: MYSQL_PASSWORD
+              value: wppass
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: mysql-storage
+      volumes:
+        - name: mysql-storage
+          persistentVolumeClaim:
+            claimName: mysql-pvc
+---
 apiVersion: v1
 kind: Service
 metadata:
-  annotations:
-    kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"labels":{"k8s-app":"kubernetes-dashboard"},"name":"kubernetes-dashboard","namespace":"kubernetes-dashboard"},"spec":{"ports":[{"port":443,"targetPort":8443}],"selector":{"k8s-app":"kubernetes-dashboard"}}}
-  creationTimestamp: "2023-12-26T07:55:00Z"
-  labels:
-    k8s-app: kubernetes-dashboard
-  name: kubernetes-dashboard
-  namespace: kubernetes-dashboard
-  resourceVersion: "496361"
-  uid: 227af817-5a33-4ce8-a3dd-adb43030d376
+  name: mysql
 spec:
-  clusterIP: 10.97.19.146
-  clusterIPs:
-  - 10.97.19.146
-  internalTrafficPolicy: Cluster
-  ipFamilies:
-  - IPv4
-  ipFamilyPolicy: SingleStack
-  ports:
-  - nodePort: 31000 # <<<<<<<<<<<< 수정
-    port: 443
-    protocol: TCP
-    targetPort: 8443
   selector:
-    k8s-app: kubernetes-dashboard
-  sessionAffinity: None
-  type: NodePort # <<<<<<<<<<<< 수정
-status:
-  loadBalancer: {}
-```
-- 변경사항 확인
-```bash
-kubectl get svc -n kubernetes-dashboard
-```
-- 예시 링크
-```
-https://192.168.0.11:31000/#login
-```
----
-### 3) 관리자 계정 생성
-- 설치 파일 생성
-```bash
-vi dashboard-admin.yaml
-```
-- dashboard-admin.yaml 입력
-- 🔽 dashboard-admin.yaml 파일
-```yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: admin-user
-  namespace: kubernetes-dashboard
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: admin-user
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-- kind: ServiceAccount
-  name: admin-user
-  namespace: kubernetes-dashboard
+    app: mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
 ```
 - 설치
 ```bash
-kubectl apply -f dashboard-admin.yaml
-```
-- 만들어진 대시보드 토큰 값 생성
-```bash
-kubectl -n kubernetes-dashboard create token admin-user
-```
-- 쿠버네티스 대시보드 실행
-```bash
-kubectl proxy
+kubectl apply -f mysql-deploy.yaml -n mysql
 ```
 ---
-### 4) Metrics Server 설치
-- Metrics Server 설치
+### 3) WordPress Pod 배포
+- 파일 생성
 ```bash
-kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+vi wordpress-deploy.yaml
 ```
-- Metrics Server 상태 확인
-```bash
-kubectl get deployment metrics-server -n kube-system
-```
-- Metrics Server가 작동하지 않을 때의 일반적인 해결책 (오류상황 발생시 시도)
-- 로그 확인
-```bash
-kubectl logs -l k8s-app=metrics-server -n kube-system
-```
-- ClusterRoleBinding 설정
-```bash
-kubectl create clusterrolebinding metrics-server:system:auth-delegator --clusterrole=system:auth-delegator --serviceaccount=kube-system:metrics-server
-```
-- kubelet 인증 문제 해결
-- Metrics Server Deployment 수정
-```bash
-kubectl edit deployment metrics-server -n kube-system
-```
-- 내용 추가
+- wordpress-deploy.yaml 파일 내용 입력
 ```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wordpress
 spec:
-  containers:
-    - args:
-      - --kubelet-insecure-tls
+  selector:
+    matchLabels:
+      app: wordpress
+  replicas: 2    # << Pod 2개 배포 >>
+  template:
+    metadata:
+      labels:
+        app: wordpress
+    spec:
+      containers:
+        - name: wordpress
+          image: wordpress:latest
+          env:
+            - name: WORDPRESS_DB_HOST
+              value: [MySQL ClusterIP]:3306         # << 추후에 ClusterIP로 수정 필요 >>
+            - name: WORDPRESS_DB_USER
+              value: wpuser
+            - name: WORDPRESS_DB_PASSWORD
+              value: wppass
+            - name: WORDPRESS_DB_NAME
+              value: wordpress
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - mountPath: /var/www/html
+              name: wordpress-storage
+      volumes:
+        - name: wordpress-storage
+          persistentVolumeClaim:
+            claimName: wordpress-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wordpress
+spec:
+  type: NodePort
+  selector:
+    app: wordpress
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080  # 외부에서 접근할 수 있도록 NodePort 설정
 ```
-- Metrics Server 상태 확인 후 다시 시도
+- 설치
 ```bash
-kubectl top pod -n auw-ai
+kubectl apply -f wordpress-deploy.yaml -n mysql
 ```
-- Custom Resource Definitions (CRDs) 활성화 (선택사항)
+---
+### 4) MySQL ClusterIP 수정
+- mysql Namespace의 전체 리소스 확인
+- 출력 내용 확인하여 Deployment명과 mysql의 ClusterIP 복사해두기
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.6.1/aio/deploy/crd.yaml
+kubectl get all -n mysql -o wide
+```
+- Deployment 수정
+```bash
+kubectl edit deployment.apps/wordpress -n mysql
+```
+- [MySQL ClusterIP] 부분을 자신의 ClusterIP로 수정하기
+```yaml
+...
+spec:
+      containers:
+        - name: wordpress
+          image: wordpress:latest
+          env:
+            - name: WORDPRESS_DB_HOST
+              value: [MySQL ClusterIP]:3306  # 확인 후 수정 필요
+...
+```
+- 상태 확인
+```bash
+kubectl get all -n mysql -o wide
 ```
