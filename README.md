@@ -625,7 +625,7 @@ spec:
 kubectl apply -f mysql-deploy.yaml -n mysql
 ```
 ---
-### 3) WordPress Pod 배포
+### 3) WordPress Pod 및 Service 배포
 - 파일 생성
 ```bash
 vi wordpress-deploy.yaml
