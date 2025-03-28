@@ -386,8 +386,10 @@ deployment-2048    2/2     2            2           1m
 kubectl get pod
 ```
 ```bash
-deployment-2048-7ddddx   1/1     Running   0          1m
-deployment-2048-7ttttx   1/1     Running   0          1m
+# 출력 결과
+NAME                               READY   STATUS    RESTARTS   AGE
+deployment-2048-69bd866cb6-pmctf   1/1     Running   0          17s
+deployment-2048-69bd866cb6-szmrk   1/1     Running   0          17s
 ```
 ---
 ### 2) Service 생성
@@ -425,7 +427,9 @@ kubectl get svc
 ```
 ```bash
 # 출력 결과
-
+NAME              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+deployment-2048   ClusterIP   10.101.72.116   <none>        80/TCP    4s
+kubernetes        ClusterIP   10.96.0.1       <none>        443/TCP   124m
 ```
 - NodePort로 수정
 ```bash
@@ -445,7 +449,9 @@ kubectl get svc
 ```
 ```bash
 # 출력 결과
-
+NAME              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+deployment-2048   NodePort    10.101.72.116   <none>        80:30431/TCP   68s
+kubernetes        ClusterIP   10.96.0.1       <none>        443/TCP        125m
 ```
 ---
 ### 3) 상태 확인하기
@@ -455,7 +461,7 @@ kubectl get all -A
 ```
 - 서비스 확인
 ```bash
-kubectl get svc
+kubectl get svc -n [namespace명]
 ```
 - Pod 확인
 ```bash
@@ -537,27 +543,27 @@ https://192.168.0.11:31000/#login
 vi dashboard-admin.yaml
 ```
 - dashboard-admin.yaml 입력
-    - 🔽 dashboard-admin.yaml 파일
-    ```yaml
-    apiVersion: v1
-    kind: ServiceAccount
-    metadata:
-    name: admin-user
-    namespace: kubernetes-dashboard
-    ---
-    apiVersion: rbac.authorization.k8s.io/v1
-    kind: ClusterRoleBinding
-    metadata:
-    name: admin-user
-    roleRef:
-    apiGroup: rbac.authorization.k8s.io
-    kind: ClusterRole
-    name: cluster-admin
-    subjects:
-    - kind: ServiceAccount
-    name: admin-user
-    namespace: kubernetes-dashboard
-    ```
+- 🔽 dashboard-admin.yaml 파일
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin-user
+  namespace: kubernetes-dashboard
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-user
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: admin-user
+  namespace: kubernetes-dashboard
+```
 - 설치
 ```bash
 kubectl apply -f dashboard-admin.yaml
@@ -581,27 +587,27 @@ kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/late
 kubectl get deployment metrics-server -n kube-system
 ```
 - Metrics Server가 작동하지 않을 때의 일반적인 해결책 (오류상황 발생시 시도)
-    - 로그 확인
+- 로그 확인
+```bash
+kubectl logs -l k8s-app=metrics-server -n kube-system
+```
+- ClusterRoleBinding 설정
+```bash
+kubectl create clusterrolebinding metrics-server:system:auth-delegator --clusterrole=system:auth-delegator --serviceaccount=kube-system:metrics-server
+```
+- kubelet 인증 문제 해결
+    - Metrics Server Deployment 수정
     ```bash
-    kubectl logs -l k8s-app=metrics-server -n kube-system
+    kubectl edit deployment metrics-server -n kube-system
     ```
-    - ClusterRoleBinding 설정
-    ```bash
-    kubectl create clusterrolebinding metrics-server:system:auth-delegator --clusterrole=system:auth-delegator --serviceaccount=kube-system:metrics-server
+    - 내용 추가
+    ```yaml
+    spec:
+        containers:
+        - args:
+            - --kubelet-insecure-tls
     ```
-    - kubelet 인증 문제 해결
-        - Metrics Server Deployment 수정
-        ```bash
-        kubectl edit deployment metrics-server -n kube-system
-        ```
-        - 내용 추가
-        ```yaml
-        spec:
-            containers:
-            - args:
-                - --kubelet-insecure-tls
-        ```
-    - Metrics Server 상태 확인 후 다시 시도
+- Metrics Server 상태 확인 후 다시 시도
     ```bash
     kubectl top pod -n auw-ai
     ```
