@@ -398,18 +398,25 @@ vi service-2048.yaml
 - 파일 내용 기입
     - 🔽 service-2048.yaml 파일
     ```yaml
-    apiVersion: v1
-    kind: Service
+    apiVersion: apps/v1
+    kind: Deployment
     metadata:
     name: deployment-2048
     spec:
+    replicas: 2
     selector:
+        matchLabels:
         app.kubernetes.io/name: app-2048
-    ports:
-        - protocol: TCP
-        port: 80
-        targetPort: 80
-    type: ClusterIP
+    template:
+        metadata:
+        labels:
+            app.kubernetes.io/name: app-2048
+        spec:
+        containers:
+            - name: app-2048
+            image: alexwhen/docker-2048
+            ports:
+                - containerPort: 80
     ```
     ```bash
     > i 입력하여 파일내용 기입
@@ -422,6 +429,30 @@ kubectl apply -f service-2048.yaml
 - Service 목록 확인
 ```bash
 kubectl get svc
+```
+```bash
+# 출력 결과
+
+```
+- NodePort로 수정
+```bash
+kubectl edit svc deployment-2048
+```
+```yaml
+spec:
+    type: NodePort
+```
+```bash
+> i 입력 후 수정
+> :wq 입력하여 저장 후 종료
+```
+- Service 목록 확인
+```bash
+kubectl get svc
+```
+```bash
+# 출력 결과
+
 ```
 ---
 ### 3) 상태 확인하기
