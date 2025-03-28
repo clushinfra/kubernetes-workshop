@@ -476,7 +476,7 @@ kubectl describe pod [pod명]
 kubectl logs [pod명]
 ```
 ---
-## 2.  쿠버네티스 대시보드 배포
+## 2.  나만의 블로그 만들기
 
 ### 0) Namespace 생성
 - Namespace 조회
