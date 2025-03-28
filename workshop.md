@@ -342,32 +342,32 @@ alias k
 vi deployment-2048.yaml
 ```
 - 파일 내용 기입
-- 🔽 deployment-2048.yaml 파일
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: deployment-2048
-spec:
-  replicas: 2   # pod 2개 배포
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: app-2048
-  template:
+    - 🔽 deployment-2048.yaml 파일
+    ```yaml
+    apiVersion: apps/v1
+    kind: Deployment
     metadata:
-      labels:
-        app.kubernetes.io/name: app-2048
+    name: deployment-2048
     spec:
-      containers:
-        - name: app-2048
-          image: alexwhen/docker-2048
-          ports:
-            - containerPort: 80
-```
-```bash
-> i 입력하여 파일내용 기입
-> :wq 입력하여 저장 후 종료
-```
+    replicas: 2   # pod 2개 배포
+    selector:
+        matchLabels:
+        app.kubernetes.io/name: app-2048
+    template:
+        metadata:
+        labels:
+            app.kubernetes.io/name: app-2048
+        spec:
+        containers:
+            - name: app-2048
+            image: alexwhen/docker-2048
+            ports:
+                - containerPort: 80
+    ```
+    ```bash
+    > i 입력하여 파일내용 기입
+    > :wq 입력하여 저장 후 종료
+    ```
 - Deployment 배포
 ```bash
 kubectl apply -f deployment-2048.yaml
@@ -379,25 +379,25 @@ kubectl apply -f deployment-2048.yaml
 vi service-2048.yaml
 ```
 - 파일 내용 기입
-- 🔽 service-2048.yaml 파일
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: deployment-2048
-spec:
-  selector:
-    app.kubernetes.io/name: app-2048
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 80
-  type: ClusterIP
-```
-```bash
-> i 입력하여 파일내용 기입
-> :wq 입력하여 저장 후 종료
-```
+    - 🔽 service-2048.yaml 파일
+    ```yaml
+    apiVersion: v1
+    kind: Service
+    metadata:
+    name: deployment-2048
+    spec:
+    selector:
+        app.kubernetes.io/name: app-2048
+    ports:
+        - protocol: TCP
+        port: 80
+        targetPort: 80
+    type: ClusterIP
+    ```
+    ```bash
+    > i 입력하여 파일내용 기입
+    > :wq 입력하여 저장 후 종료
+    ```
 - Service 배포
 ```bash
 kubectl apply -f service-2048.yaml
@@ -422,260 +422,141 @@ kubectl describe pod/[pod명]
 ```
 ---
 ## 2.  쿠버네티스 대시보드 배포
-모든 작업은 mysql 네임스페이스에서 진행
 
-### 0) Namespace 생성
-
+### 1) 서비스 설치
+- 서비스 설치
 ```bash
-# namespace 조회
-kubectl get namespaces
-
-# namespace 생성
-kubectl create namespace mysql
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
 ```
-
-### 1) PV 와 PVC 생성
-
-```yaml
-# wordpress
-kind: PersistentVolume
-apiVersion: v1
-metadata:
-  namespace: mysql
-  name: pv0001
-  labels:
-    type: local
-spec:
-  capacity:
-    storage: 25Gi
-  accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: "/data001/pv0001" 
+- 정상적으로 서비스가 만들어졌는지 확인
+```bash
+kubectl get svc -n kubernetes-dashboard
+```
 ---
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  namespace: mysql
-  name: mysql-volumeclaim
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi 
----
-# mysql
-kind: PersistentVolume
-apiVersion: v1
-metadata:
-  namespace: mysql
-  name: pv0002
-  labels:
-    type: local
-spec:
-  capacity:
-    storage: 25Gi
-  accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: "/data001/pv0002"
----
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  namespace: mysql
-  name: wordpress-volumeclaim
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
-```
-
+### 2) NodePort 설정
+- 외부 접속을 위해 NodePort 설정
 ```bash
-# PV와 PVC 생성
-kubectl apply -f pv.yaml 
+kubectl edit svc kubernetes-dashboard -n kubernetes-dashboard
 ```
-
-### 2) **MySQL Root 패스워드 저장**
-
-```bash
-kubectl create secret generic mysql-password --from-literal='password=admin' --namespace="mysql"
-```
-
-```bash
-# 패스워드 목록 확인
-kubectl get secrets -n mysql
->>
-NAME             TYPE     DATA   AGE
-mysql-password   Opaque   1      23h
-
-# 패스워드 확인
-kubectl get secret mysql-password -o jsonpath='{.data.password}' -n mysql; echo
-
-# 패스워드 디코딩
-kubectl get secret mysql-password -o jsonpath='{.data.password}' -n mysql | base64 --decode; echo
-```
-
-### 3) **MySQL Pod 배포**
-
-**🔽 mysql-deployment.yaml 파일**
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  namespace: mysql
-  name: mysql
-  labels:
-    app: mysql
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: mysql
-  template:
-    metadata:
-      labels:
-        app: mysql
-    spec:
-      containers:
-        - image: mysql:5.6
-          name: mysql
-          env:
-            - name: MYSQL_ROOT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: mysql-password
-                  key: password
-            - name: MYSQL_DATABASE # 구성할 database명
-              value: k8sdb
-            - name: MYSQL_USER # database에 권한이 있는 user
-              value: k8suser
-            - name: MYSQL_ROOT_HOST # 접근 호스트
-              value: '%'  
-            - name: MYSQL_PASSWORD # database에 권한이 있는 user의 패스워드
-              value: admin
-          ports:
-            - containerPort: 3306
-              name: mysql
-          volumeMounts:
-            - name: mysql-persistent-storage
-              mountPath: /var/lib/mysql
-      volumes:
-        - name: mysql-persistent-storage
-          persistentVolumeClaim:
-            claimName: mysql-volumeclaim
-```
-
-```bash
-# mysql pod 배포
-kubectl apply -f mysql-deployment.yaml 
-```
-
-### 4) **MySQL Service 생성**
-
-**🔽 mysql-service.yaml 파일**
-
-```yaml
-apiVersion: v1
-
-kind: Service
-metadata:
-  namespace: mysql
-  name: mysql
-  labels:
-    app: mysql
-spec:
-  type: ClusterIP
-  ports:
-    - port: 3306
-  selector:
-    app: mysql 
-```
-
-```bash
-# mysql 서비스 생성
-kubectl apply -f mysql-service.yaml 
-```
-
-### 5) **Wordpress Pod 배포**
-
-**🔽 wordpress-deployment.yaml 파일**
-
-```yaml
-apiVersion: apps/v1
-
-kind: Deployment
-metadata:
-  namespace: mysql
-  name: wordpress
-  labels:
-    app: wordpress
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: wordpress
-  template:
-    metadata:
-      labels:
-        app: wordpress
-    spec:
-      containers:
-        - image: wordpress
-          name: wordpress
-          env:
-          - name: WORDPRESS_DB_HOST
-            value: mysql:3306
-          - name: WORDPRESS_DB_NAME
-            value: k8sdb
-          - name: WORDPRESS_DB_USER
-            value: k8suser
-          - name: WORDPRESS_DB_PASSWORD
-            value: admin
-          ports:
-            - containerPort: 80
-              name: wordpress
-          volumeMounts:
-            - name: wordpress-persistent-storage
-              mountPath: /var/www/html
-      volumes:
-        - name: wordpress-persistent-storage
-          persistentVolumeClaim:
-            claimName: wordpress-volumeclaim 
-```
-
-```bash
-# wordpress pod 배포
-kubectl apply -f wordpress-deployment.yaml 
-```
-
-### 6) **Wordpress Service 배포**
-
-**🔽 wordpress-service.yaml 파일**
-
+- 파일 수정
 ```yaml
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: mysql
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"labels":{"k8s-app":"kubernetes-dashboard"},"name":"kubernetes-dashboard","namespace":"kubernetes-dashboard"},"spec":{"ports":[{"port":443,"targetPort":8443}],"selector":{"k8s-app":"kubernetes-dashboard"}}}
+  creationTimestamp: "2023-12-26T07:55:00Z"
   labels:
-    app: wordpress
-  name: wordpress
+    k8s-app: kubernetes-dashboard
+  name: kubernetes-dashboard
+  namespace: kubernetes-dashboard
+  resourceVersion: "496361"
+  uid: 227af817-5a33-4ce8-a3dd-adb43030d376
 spec:
-  type: NodePort
+  clusterIP: 10.97.19.146
+  clusterIPs:
+  - 10.97.19.146
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
   ports:
-    - port: 80
-      targetPort: 80
-      protocol: TCP
+  - nodePort: 31000 # <<<<<<<<<<<< 수정
+    port: 443
+    protocol: TCP
+    targetPort: 8443
   selector:
-    app: wordpress
+    k8s-app: kubernetes-dashboard
+  sessionAffinity: None
+  type: NodePort # <<<<<<<<<<<< 수정
+status:
+  loadBalancer: {}
 ```
-
+- 변경사항 확인
 ```bash
-# wordpress service 배포
-kubectl apply -f wordpress-service.yaml 
+kubectl get svc -n kubernetes-dashboard
+```
+- 예시 링크
+```
+https://192.168.0.11:31000/#login
+```
+---
+### 3) 관리자 계정 생성
+- 설치 파일 생성
+```bash
+vi dashboard-admin.yaml
+```
+- dashboard-admin.yaml 입력
+    - 🔽 dashboard-admin.yaml 파일
+    ```yaml
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+    name: admin-user
+    namespace: kubernetes-dashboard
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+    name: admin-user
+    roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: cluster-admin
+    subjects:
+    - kind: ServiceAccount
+    name: admin-user
+    namespace: kubernetes-dashboard
+    ```
+- 설치
+```bash
+kubectl apply -f dashboard-admin.yaml
+```
+- 만들어진 대시보드 토큰 값 생성
+```bash
+kubectl -n kubernetes-dashboard create token admin-user
+```
+- 쿠버네티스 대시보드 실행
+```bash
+kubectl proxy
+```
+---
+### 4) Metrics Server 설치
+- Metrics Server 설치
+```bash
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+```
+- Metrics Server 상태 확인
+```bash
+kubectl get deployment metrics-server -n kube-system
+```
+- Metrics Server가 작동하지 않을 때의 일반적인 해결책 (오류상황 발생시 시도)
+    - 로그 확인
+    ```bash
+    kubectl logs -l k8s-app=metrics-server -n kube-system
+    ```
+    - ClusterRoleBinding 설정
+    ```bash
+    kubectl create clusterrolebinding metrics-server:system:auth-delegator --clusterrole=system:auth-delegator --serviceaccount=kube-system:metrics-server
+    ```
+    - kubelet 인증 문제 해결
+        - Metrics Server Deployment 수정
+        ```bash
+        kubectl edit deployment metrics-server -n kube-system
+        ```
+        - 내용 추가
+        ```yaml
+        spec:
+            containers:
+            - args:
+                - --kubelet-insecure-tls
+        ```
+    - Metrics Server 상태 확인 후 다시 시도
+    ```bash
+    kubectl top pod -n auw-ai
+    ```
+- Custom Resource Definitions (CRDs) 활성화 (선택사항)
+```bash
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.6.1/aio/deploy/crd.yaml
 ```
