@@ -372,6 +372,23 @@ vi deployment-2048.yaml
 ```bash
 kubectl apply -f deployment-2048.yaml
 ```
+- Deployment 확인
+```bash
+kubectl get deployment
+```
+```bash
+# 출력 결과
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+deployment-2048    2/2     2            2           1m
+```
+- Pod 확인
+```bash
+kubectl get pod
+```
+```bash
+deployment-2048-7ddddx   1/1     Running   0          1m
+deployment-2048-7ttttx   1/1     Running   0          1m
+```
 ---
 ### 2) Service 생성
 - service-2048.yaml 파일 생성
@@ -402,9 +419,13 @@ vi service-2048.yaml
 ```bash
 kubectl apply -f service-2048.yaml
 ```
+- Service 목록 확인
+```bash
+kubectl get svc
+```
 ---
 ### 3) 상태 확인하기
-- 모든 네임스페이스의 리소스(Pod, Service 등) 전체 상태 확인
+- 전체 리소스 확인(모든 네임스페이스)
 ```bash
 kubectl get all -A
 ```
@@ -418,7 +439,11 @@ kubectl get po -o wide
 ```
 - 상세정보 확인
 ```bash
-kubectl describe pod/[pod명]
+kubectl describe pod [pod명]
+```
+- Pod 로그 확인
+```bash
+kubectl logs [pod명]
 ```
 ---
 ## 2.  쿠버네티스 대시보드 배포
