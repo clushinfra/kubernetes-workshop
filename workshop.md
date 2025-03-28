@@ -13,11 +13,11 @@ root / clush
 ```
 - ssh 연결
 ```bash
-ssh root@192.168.1.z18
+ssh root@[IP주소]
 ```
 - 핑 테스트
 ```bash
-ping 192.168.1.18
+ping [IP주소]
 ```
 ---
 ### 1) OS 정보 확인
@@ -314,7 +314,6 @@ kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.5/
 ## 3. 워커 노드 진행
 - 복사해둔 내용 붙여넣기
 ```bash
-# 복사해둔 내용 붙여넣기
 kubeadm join 192.168.1.18:6443 --token xxxxx \
         --discovery-token-ca-cert-hash sha256:xxxxx
 ```
@@ -335,215 +334,94 @@ alias k
 ---
 # [실습2] 웹 애플리케이션 배포 **실습**
 
-## 1. Nginx 배포
+## 1. 2048 게임 배포
 
 ### 1) Deployment 생성
-
+- deployment-2048.yaml 파일 생성
 ```bash
-# nginx-deploy.yaml 파일 생성
-touch nginx-deploy.yaml
-
-# 편집
-vi nginx-deploy.yaml
-> i 입력하여 nginx-deploy.yaml 파일내용 기입
-
-# Deployment 배포
-kubectl apply -f nginx-deploy.yaml
->> deployment.apps/nginx created
+vi deployment-2048.yaml
 ```
-
-**🔽 nginx-deploy.yaml 파일**
-
+- 파일 내용 기입
+- 🔽 deployment-2048.yaml 파일
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx
-  labels:
-    app: nginx
+  name: deployment-2048
 spec:
-  replicas: 2  # Nginx Pod 2개 배포
+  replicas: 2   # pod 2개 배포
   selector:
     matchLabels:
-      app: nginx
+      app.kubernetes.io/name: app-2048
   template:
     metadata:
       labels:
-        app: nginx
+        app.kubernetes.io/name: app-2048
     spec:
       containers:
-        - name: nginx
-          image: nginx:latest  # 최신 Nginx 이미지 사용
+        - name: app-2048
+          image: alexwhen/docker-2048
           ports:
             - containerPort: 80
-          resources:
-            limits:
-              cpu: "500m"
-              memory: "256Mi"
-            requests:
-              cpu: "250m"
-              memory: "128Mi"
 ```
-
-### 2) Service 생성
-
 ```bash
-# nginx-service.yaml 파일 생성
-touch nginx-service.yaml
-
-# 편집
-vi nginx-service.yaml
-> i 입력하여 nginx-deploy.yaml 파일내용 기입
-
-# Service 배포
-kubectl apply -f nginx-service.yaml
->> service/nginx created
+> i 입력하여 파일내용 기입
+> :wq 입력하여 저장 후 종료
 ```
-
-**🔽 nginx-service.yaml 파일**
-
+- Deployment 배포
+```bash
+kubectl apply -f deployment-2048.yaml
+```
+---
+### 2) Service 생성
+- service-2048.yaml 파일 생성
+```bash
+vi service-2048.yaml
+```
+- 파일 내용 기입
+- 🔽 service-2048.yaml 파일
 ```yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx
+  name: deployment-2048
 spec:
   selector:
-    app: nginx
-  type: NodePort
+    app.kubernetes.io/name: app-2048
   ports:
-    - port: 80            # Service 내부 포트
-      targetPort: 80      # Pod의 컨테이너 포트
-      nodePort: 31234     # 외부에서 접근할 수 있는 포트 (30000~32767 범위)
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
 ```
-
-### 3) 상태 확인하기
-
 ```bash
-#
-kubectl get all -A
->>
-NAMESPACE     NAME                                           READY   STATUS    RESTARTS   AGE
-default       pod/nginx-74c9c64d6f-99tg5                     1/1     Running   0          93s
-default       pod/nginx-74c9c64d6f-zt7x5                     1/1     Running   0          93s
-kube-system   pod/calico-kube-controllers-654b5d4859-xnr6x   1/1     Running   0          105m
-kube-system   pod/calico-node-565z6                          1/1     Running   0          103m
-kube-system   pod/calico-node-9xkbt                          1/1     Running   0          102m
-kube-system   pod/calico-node-kcvhf                          1/1     Running   0          105m
-kube-system   pod/coredns-668d6bf9bc-8rbmb                   1/1     Running   0          113m
-kube-system   pod/coredns-668d6bf9bc-dcmp8                   1/1     Running   0          113m
-kube-system   pod/etcd-master                                1/1     Running   0          113m
-kube-system   pod/kube-apiserver-master                      1/1     Running   0          113m
-kube-system   pod/kube-controller-manager-master             1/1     Running   0          113m
-kube-system   pod/kube-proxy-62p25                           1/1     Running   0          102m
-kube-system   pod/kube-proxy-sx7p9                           1/1     Running   0          113m
-kube-system   pod/kube-proxy-vxth5                           1/1     Running   0          103m
-kube-system   pod/kube-scheduler-master                      1/1     Running   0          113m
-
-NAMESPACE     NAME                 TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                  AGE
-default       service/kubernetes   ClusterIP   10.96.0.1        <none>        443/TCP                  113m
-default       service/nginx        NodePort    10.111.246.251   <none>        80:31234/TCP             74s
-kube-system   service/kube-dns     ClusterIP   10.96.0.10       <none>        53/UDP,53/TCP,9153/TCP   113m
-
-NAMESPACE     NAME                         DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR            AGE
-kube-system   daemonset.apps/calico-node   3         3         3       3            3           kubernetes.io/os=linux   105m
-kube-system   daemonset.apps/kube-proxy    3         3         3       3            3           kubernetes.io/os=linux   113m
-
-NAMESPACE     NAME                                      READY   UP-TO-DATE   AVAILABLE   AGE
-default       deployment.apps/nginx                     2/2     2            2           93s
-kube-system   deployment.apps/calico-kube-controllers   1/1     1            1           105m
-kube-system   deployment.apps/coredns                   2/2     2            2           113m
-
-NAMESPACE     NAME                                                 DESIRED   CURRENT   READY   AGE
-default       replicaset.apps/nginx-74c9c64d6f                     2         2         2       93s
-kube-system   replicaset.apps/calico-kube-controllers-654b5d4859   1         1         1       105m
-kube-system   replicaset.apps/coredns-668d6bf9bc                   2         2         2       113m
-
-#
-kubectl get  svc -A
->>
-NAMESPACE     NAME         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                  AGE
-default       kubernetes   ClusterIP   10.96.0.1        <none>        443/TCP                  117m
-default       nginx        NodePort    10.111.246.251   <none>        80:31234/TCP             5m28s
-kube-system   kube-dns     ClusterIP   10.96.0.10       <none>        53/UDP,53/TCP,9153/TCP   117m
-
-#
-kubectl get po -n default
->>
-NAME                     READY   STATUS    RESTARTS   AGE
-nginx-74c9c64d6f-99tg5   1/1     Running   0          6m1s
-nginx-74c9c64d6f-zt7x5   1/1     Running   0          6m1s
-
-#
-kubectl describe pod/nginx-74c9c64d6f-99tg5
->>
-Name:             nginx-74c9c64d6f-99tg5
-Namespace:        default
-Priority:         0
-Service Account:  default
-Node:             work2/192.168.1.22
-Start Time:       Tue, 18 Mar 2025 04:17:29 +0000
-Labels:           app=nginx
-                  pod-template-hash=74c9c64d6f
-Annotations:      cni.projectcalico.org/containerID: edb02e048343869a551b927d6b9b7aafc116b4c99b84bd41cd1dbc6930aec276
-                  cni.projectcalico.org/podIP: 192.168.123.1/32
-                  cni.projectcalico.org/podIPs: 192.168.123.1/32
-Status:           Running
-IP:               192.168.123.1
-IPs:
-  IP:           192.168.123.1
-Controlled By:  ReplicaSet/nginx-74c9c64d6f
-Containers:
-  nginx:
-    Container ID:   containerd://2c5c763245ca339e7218b38516679d9c24411661ddc46c361330fea7d19785c9
-    Image:          nginx:latest
-    Image ID:       docker.io/library/nginx@sha256:706959c57d76560ed77ea37b7e0a203388b5b12c153c4f820449b9d43d292f53
-    Port:           80/TCP
-    Host Port:      0/TCP
-    State:          Running
-      Started:      Tue, 18 Mar 2025 04:17:38 +0000
-    Ready:          True
-    Restart Count:  0
-    Limits:
-      cpu:     500m
-      memory:  256Mi
-    Requests:
-      cpu:        250m
-      memory:     128Mi
-    Environment:  <none>
-    Mounts:
-      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-5n85z (ro)
-Conditions:
-  Type                        Status
-  PodReadyToStartContainers   True
-  Initialized                 True
-  Ready                       True
-  ContainersReady             True
-  PodScheduled                True
-Volumes:
-  kube-api-access-5n85z:
-    Type:                    Projected (a volume that contains injected data from multiple sources)
-    TokenExpirationSeconds:  3607
-    ConfigMapName:           kube-root-ca.crt
-    ConfigMapOptional:       <nil>
-    DownwardAPI:             true
-QoS Class:                   Burstable
-Node-Selectors:              <none>
-Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
-                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
-Events:
-  Type    Reason     Age    From               Message
-  ----    ------     ----   ----               -------
-  Normal  Scheduled  6m56s  default-scheduler  Successfully assigned default/nginx-74c9c64d6f-99tg5 to work2
-  Normal  Pulling    6m55s  kubelet            Pulling image "nginx:latest"
-  Normal  Pulled     6m47s  kubelet            Successfully pulled image "nginx:latest" in 8.68s (8.68s including waiting). Image size: 72180980 bytes.
-  Normal  Created    6m47s  kubelet            Created container: nginx
-  Normal  Started    6m47s  kubelet            Started container nginx
-
+> i 입력하여 파일내용 기입
+> :wq 입력하여 저장 후 종료
 ```
-
-## 2.  나만의 블로그 만들기
-
+- Service 배포
+```bash
+kubectl apply -f service-2048.yaml
+```
+---
+### 3) 상태 확인하기
+- 모든 네임스페이스의 리소스(Pod, Service 등) 전체 상태 확인
+```bash
+kubectl get all -A
+```
+- 서비스 확인
+```bash
+kubectl get svc
+```
+- Pod 확인
+```bash
+kubectl get po -o wide
+```
+- 상세정보 확인
+```bash
+kubectl describe pod/[pod명]
+```
+---
+## 2.  쿠버네티스 대시보드 배포
 모든 작업은 mysql 네임스페이스에서 진행
 
 ### 0) Namespace 생성
