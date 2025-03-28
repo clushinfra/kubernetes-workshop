@@ -596,21 +596,21 @@ kubectl logs -l k8s-app=metrics-server -n kube-system
 kubectl create clusterrolebinding metrics-server:system:auth-delegator --clusterrole=system:auth-delegator --serviceaccount=kube-system:metrics-server
 ```
 - kubelet 인증 문제 해결
-    - Metrics Server Deployment 수정
-    ```bash
-    kubectl edit deployment metrics-server -n kube-system
-    ```
-    - 내용 추가
-    ```yaml
-    spec:
-        containers:
-        - args:
-            - --kubelet-insecure-tls
-    ```
+- Metrics Server Deployment 수정
+```bash
+kubectl edit deployment metrics-server -n kube-system
+```
+- 내용 추가
+```yaml
+spec:
+  containers:
+    - args:
+      - --kubelet-insecure-tls
+```
 - Metrics Server 상태 확인 후 다시 시도
-    ```bash
-    kubectl top pod -n auw-ai
-    ```
+```bash
+kubectl top pod -n auw-ai
+```
 - Custom Resource Definitions (CRDs) 활성화 (선택사항)
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.6.1/aio/deploy/crd.yaml
