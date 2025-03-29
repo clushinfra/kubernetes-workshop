@@ -1,3 +1,5 @@
+https://velog.io/@dhkim1522/k8s-%EC%9D%B8%EA%B7%B8%EB%A0%88%EC%8A%A4-%EC%BB%A8%ED%8A%B8%EB%A1%A4%EB%9F%AC-ingress-controller-%EA%B5%AC%EC%B6%95%ED%95%98%EA%B8%B0
+
 # [실습1] **쿠버네티스 클러스터 구축 실습**
 
 ## 1. 공통 진행(master, work1, work2)
